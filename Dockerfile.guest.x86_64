@@ -1,0 +1,66 @@
+FROM debian:latest as linux-builder
+
+# install prerequisites
+RUN apt-get update && apt-get install -y build-essential git libz-dev bin86 bison flex wget bc libelf-dev libssl-dev
+RUN git clone https://github.com/torvalds/linux -b v4.20 --depth 1
+
+# build linux kernel
+WORKDIR /linux
+RUN wget https://raw.githubusercontent.com/firecracker-microvm/firecracker/master/resources/microvm-kernel-x86_64.config -O arch/x86/configs/microvm.config
+RUN touch .config && make microvm.config && make vmlinux -j$(nproc) bzImage
+#RUN make modules_install INSTALL_MOD_PATH=/modules
+
+FROM linux-builder as virtio-builder
+# get virtio-accel source
+ARG TOKEN
+WORKDIR /
+RUN git clone https://${TOKEN}:x-oauth-basic@github.com/cloudkernels/virtio-accel
+
+# build virtio-accel
+WORKDIR /virtio-accel
+RUN make KDIR=/linux
+
+FROM ubuntu:latest as rootfs-builder
+RUN mkdir -p /lib/modules/4.20.0/
+COPY --from=virtio-builder /virtio-accel/virtio_accel.ko /lib/modules/4.20.0/
+RUN touch /lib/modules/4.20.0/modules.order
+RUN touch /lib/modules/4.20.0/modules.builtin
+RUN apt-get update && apt-get -y install init udev kmod
+RUN depmod 4.20.0
+RUN apt-get clean
+RUN sed s/root\:x\:/root\:\:/ -i /etc/passwd
+RUN sed s/root\:\*\:/root\:\:/ -i /etc/shadow
+RUN echo "virtio_accel" >> /etc/modules
+
+FROM rootfs-builder as vaccelrt-builder
+ARG TOKEN
+RUN apt-get update && apt-get install -y build-essential cmake         clang \
+        libclang-dev \
+        llvm-dev \
+        curl \
+        libssl-dev \
+        zlib1g-dev \
+	git
+
+WORKDIR /
+COPY vaccelrt.patch /vaccelrt.patch
+RUN git clone https://${TOKEN}:x-oauth-basic@github.com/cloudkernels/virtio-accel -b cleanup
+RUN git clone https://github.com/cloudkernels/vaccelrt
+WORKDIR /vaccelrt
+RUN patch -p1 < /vaccelrt.patch
+RUN mkdir -p build
+WORKDIR /vaccelrt/build
+RUN cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_PLUGIN_VIRTIO=ON -DVIRTIO_ACCEL_ROOT=/virtio-accel -DBUILD_EXAMPLES=ON ..
+RUN make install
+RUN echo "/usr/local/lib" >> /etc/ld.so.conf.d/vaccel.conf
+
+
+FROM scratch as artifacts
+COPY /create_rootfs.sh /
+COPY --from=linux-builder /linux/arch/x86/boot/bzImage /
+COPY --from=linux-builder /linux/vmlinux /
+COPY --from=rootfs-builder / /rootfs
+COPY --from=vaccelrt-builder /usr/local /rootfs/usr/local
+COPY --from=vaccelrt-builder /etc/ld.so.conf.d/vaccel.conf /rootfs/etc/ld.so.conf.d/vaccel.conf
+COPY --from=vaccelrt-builder /vaccelrt/build/examples/classify /rootfs/root/
+COPY /dog_0.jpg	/rootfs/root/
