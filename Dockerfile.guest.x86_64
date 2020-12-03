@@ -1,3 +1,3 @@
 FROM scratch as artifacts
-COPY /create_rootfs.sh /
-COPY /dog_0.jpg	/
+COPY /create_rootfs.sh /vmlinux
+COPY /dog_0.jpg	/rootfs.img
