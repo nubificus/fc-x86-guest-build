@@ -48,8 +48,8 @@ jobs:
         uses: actions/upload-release-asset@v1                                      
         env:                                                                       
           GITHUB_TOKEN: ${{ secrets.NBFC_BUILDER_TOKEN }}                          
-        #with:                                                                      
-        upload_url: ${{ steps.create_release.outputs.upload_url }}               
+        with:                                                                      
+          upload_url: ${{ steps.create_release.outputs.upload_url }}               
         #  asset_path: |
         #    fc-guest-x86_64/vmlinux
         #    fc-guest-x86_64/rootfs.img
