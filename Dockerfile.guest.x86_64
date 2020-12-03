@@ -33,6 +33,7 @@ RUN apt-get clean
 RUN sed s/root\:x\:/root\:\:/ -i /etc/passwd
 RUN sed s/root\:\*\:/root\:\:/ -i /etc/shadow
 RUN echo "virtio_accel" >> /etc/modules
+RUN echo "vaccel-guest.nubificus.co.uk" > /etc/hostname
 
 FROM rootfs-builder as vaccelrt-builder
 ARG TOKEN
@@ -63,4 +64,4 @@ COPY --from=rootfs-builder / /rootfs
 COPY --from=vaccelrt-builder /usr/local /rootfs/usr/local
 COPY --from=vaccelrt-builder /etc/ld.so.conf.d/vaccel.conf /rootfs/etc/ld.so.conf.d/vaccel.conf
 COPY --from=vaccelrt-builder /vaccelrt/build/examples/classify /rootfs/root/
-COPY /dog_0.jpg	/rootfs/root/
+COPY /images /rootfs/root/images
