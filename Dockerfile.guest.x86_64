@@ -45,11 +45,9 @@ RUN apt-get update && apt-get install -y build-essential cmake         clang \
 	git
 
 WORKDIR /
-COPY vaccelrt.patch /vaccelrt.patch
 RUN git clone https://${TOKEN}:x-oauth-basic@github.com/cloudkernels/virtio-accel -b cleanup
 RUN git clone https://github.com/cloudkernels/vaccelrt
 WORKDIR /vaccelrt
-RUN patch -p1 < /vaccelrt.patch
 RUN mkdir -p build
 WORKDIR /vaccelrt/build
 RUN cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_PLUGIN_VIRTIO=ON -DVIRTIO_ACCEL_ROOT=/virtio-accel -DBUILD_EXAMPLES=ON ..
