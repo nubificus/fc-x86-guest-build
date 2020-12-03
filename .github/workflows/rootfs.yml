@@ -30,18 +30,18 @@ jobs:
           TOKEN: ${{ secrets.NBFC_BUILDER_TOKEN }}
         run: bash build.sh
       
-      - name: Create release                                                       
-        id: create_release                                                         
-        uses: actions/create-release@v1                                            
-        env:                                                                       
-          GITHUB_TOKEN: ${{ secrets.NBFC_BUILDER_TOKEN }}                          
-        with:                                                                      
-          tag_name: ${{ github.ref }}                                              
-          release_name: Release fc-guest-x86_64-${{ github.ref }}                           
-          body: |
-            fc-guest-x86_64-vmlinux-rootfs
-          draft: false                                                             
-          prerelease: false                                                        
+        #- name: Create release                                                       
+        #id: create_release                                                         
+        #uses: actions/create-release@v1                                            
+        #env:                                                                       
+        #  GITHUB_TOKEN: ${{ secrets.NBFC_BUILDER_TOKEN }}                          
+        #with:                                                                      
+        #  tag_name: ${{ github.ref }}                                              
+        #  release_name: Release fc-guest-x86_64-${{ github.ref }}                           
+        #  body: |
+        #    fc-guest-x86_64-vmlinux-rootfs
+        #  draft: false                                                             
+        #  prerelease: false                                                        
       
       - name: Upload release asset                                                 
         id: upload-release-asset                                                   
