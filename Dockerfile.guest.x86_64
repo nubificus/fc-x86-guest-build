@@ -14,7 +14,7 @@ FROM linux-builder as virtio-builder
 # get virtio-accel source
 ARG TOKEN
 WORKDIR /
-RUN git clone https://${TOKEN}:x-oauth-basic@github.com/cloudkernels/virtio-accel -b cleanup
+RUN git clone https://${TOKEN}:x-oauth-basic@github.com/cloudkernels/virtio-accel
 
 # build virtio-accel
 WORKDIR /virtio-accel
@@ -46,7 +46,7 @@ RUN apt-get update && apt-get install -y build-essential cmake         clang \
 	git
 
 WORKDIR /
-RUN git clone https://${TOKEN}:x-oauth-basic@github.com/cloudkernels/virtio-accel -b cleanup
+RUN git clone https://${TOKEN}:x-oauth-basic@github.com/cloudkernels/virtio-accel
 RUN git clone https://github.com/cloudkernels/vaccelrt
 WORKDIR /vaccelrt
 RUN mkdir -p build
