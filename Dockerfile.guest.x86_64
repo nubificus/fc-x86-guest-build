@@ -27,7 +27,10 @@ RUN touch /lib/modules/4.20.0/modules.order
 RUN touch /lib/modules/4.20.0/modules.builtin
 RUN echo "export VACCEL_BACKENDS=/usr/local/lib/libvaccel-virtio.so" >> /root/.bashrc
 RUN echo "/sbin/ldconfig" >> /root/.bashrc
-RUN apt-get update && apt-get -y install init udev kmod
+RUN apt-get update && apt-get -y install init udev kmod openssh-server
+RUN systemctl enable ssh
+RUN echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
+RUN echo "PermitEmptyPasswords yes" >> /etc/ssh/sshd_config
 RUN depmod 4.20.0
 RUN apt-get clean
 RUN sed s/root\:x\:/root\:\:/ -i /etc/passwd
