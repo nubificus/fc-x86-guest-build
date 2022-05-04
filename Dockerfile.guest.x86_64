@@ -1,13 +1,13 @@
 FROM debian:latest as linux-builder
 
 # install prerequisites
-RUN apt-get update && apt-get install -y build-essential git libz-dev bin86 bison flex wget bc libelf-dev libssl-dev
-RUN git clone https://github.com/torvalds/linux -b v4.20 --depth 1
+RUN apt-get --allow-releaseinfo-change update && apt-get install -y build-essential git libz-dev bin86 bison flex wget bc libelf-dev libssl-dev
+RUN git clone https://github.com/torvalds/linux -b v5.10 --depth 1
 
 # build linux kernel
 WORKDIR /linux
-RUN wget https://raw.githubusercontent.com/firecracker-microvm/firecracker/master/resources/microvm-kernel-x86_64.config -O arch/x86/configs/microvm.config
-RUN touch .config && make microvm.config && make vmlinux -j$(nproc) bzImage
+RUN wget https://raw.githubusercontent.com/firecracker-microvm/firecracker/main/resources/guest_configs/microvm-kernel-x86_64-5.10.config -O arch/x86/configs/microvm.config
+RUN touch .config && make microvm.config CONFIG_MODULES=y && make vmlinux -j$(nproc) bzImage modules
 #RUN make modules_install INSTALL_MOD_PATH=/modules
 
 FROM linux-builder as virtio-builder
@@ -20,18 +20,18 @@ RUN git clone https://${TOKEN}:x-oauth-basic@github.com/cloudkernels/virtio-acce
 WORKDIR /virtio-accel
 RUN make KDIR=/linux ZC=0
 
-FROM ubuntu:latest as rootfs-builder
-RUN mkdir -p /lib/modules/4.20.0/
-COPY --from=virtio-builder /virtio-accel/virtio_accel.ko /lib/modules/4.20.0/
-RUN touch /lib/modules/4.20.0/modules.order
-RUN touch /lib/modules/4.20.0/modules.builtin
+FROM ubuntu:20.04 as rootfs-builder
+RUN mkdir -p /lib/modules/5.10.0/
+COPY --from=virtio-builder /virtio-accel/virtio_accel.ko /lib/modules/5.10.0/
+RUN touch /lib/modules/5.10.0/modules.order
+RUN touch /lib/modules/5.10.0/modules.builtin
 RUN echo "export VACCEL_BACKENDS=/usr/local/lib/libvaccel-virtio.so" >> /root/.bashrc
 RUN echo "/sbin/ldconfig" >> /root/.bashrc
-RUN apt-get update && apt-get -y install init udev kmod openssh-server
+RUN apt-get --allow-releaseinfo-change update && apt-get -y install init udev kmod openssh-server
 RUN systemctl enable ssh
 RUN echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
 RUN echo "PermitEmptyPasswords yes" >> /etc/ssh/sshd_config
-RUN depmod 4.20.0
+RUN depmod 5.10.0
 RUN apt-get clean
 RUN sed s/root\:x\:/root\:\:/ -i /etc/passwd
 RUN sed s/root\:\*\:/root\:\:/ -i /etc/shadow
@@ -40,7 +40,7 @@ RUN echo "vaccel-guest.nubificus.co.uk" > /etc/hostname
 
 FROM rootfs-builder as vaccelrt-builder
 ARG TOKEN
-RUN apt-get update && apt-get install -y build-essential cmake         clang \
+RUN apt-get --allow-releaseinfo-change update && apt-get install -y build-essential cmake         clang \
         libclang-dev \
         llvm-dev \
         curl \
@@ -54,10 +54,18 @@ RUN git clone https://github.com/cloudkernels/vaccelrt --recursive
 WORKDIR /vaccelrt
 RUN mkdir -p build
 WORKDIR /vaccelrt/build
-RUN cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_PLUGIN_VIRTIO=ON -DVIRTIO_ACCEL_ROOT=/virtio-accel -DBUILD_EXAMPLES=ON ..
+RUN cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_EXAMPLES=ON ..
 RUN make install
 RUN echo "/usr/local/lib" >> /etc/ld.so.conf.d/vaccel.conf
 
+#RUN wget https://s3.nbfc.io/nbfc-assets/github/virtio-plugin/8ea6edaffb37e0ffa80ad254fd824b412c45570a/x86_64/Debug/libvaccel-virtio.so -O /usr/local/lib/libvaccel-virtio.so
+WORKDIR /
+RUN git clone --recursive https://${TOKEN}:x-oauth-basic@github.com/nubificus/vaccelrt-plugin-virtio
+WORKDIR /vaccelrt-plugin-virtio
+RUN mkdir build
+WORKDIR /vaccelrt-plugin-virtio/build
+RUN cmake ../ -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Release
+RUN cmake --build . --config Release &&  make install
 
 FROM scratch as artifacts
 COPY /create_rootfs.sh /
